@@ -15,6 +15,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'substitua_por_uma_chave_segura'
 
+from flask import Flask
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "Olá, Vercel!"
+
 # Cria pastas se não existirem
 def ensure_folders():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
