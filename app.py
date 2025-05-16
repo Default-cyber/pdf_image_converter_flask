@@ -3,14 +3,16 @@ from werkzeug.utils import secure_filename
 import os
 import traceback
 import sys
+import tempfile
+import shutil
 
 # Inicialize a aplicação
 app = Flask(__name__)
 app.secret_key = 'substitua_por_uma_chave_segura'
 
-# Configurações
-UPLOAD_FOLDER = os.path.join(os.getcwd(), 'uploads')
-OUTPUT_FOLDER = os.path.join(os.getcwd(), 'outputs')
+# Configurações - Use o diretório /tmp para ambiente serverless
+UPLOAD_FOLDER = os.path.join(tempfile.gettempdir(), 'uploads')
+OUTPUT_FOLDER = os.path.join(tempfile.gettempdir(), 'outputs')
 ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER

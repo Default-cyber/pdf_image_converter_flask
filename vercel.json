@@ -13,7 +13,7 @@
     },
     {
       "src": "/outputs/(.*)",
-      "dest": "/outputs/$1"
+      "dest": "/app.py/outputs/$1"
     },
     {
       "src": "/(.*)",
