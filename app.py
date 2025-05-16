@@ -15,13 +15,6 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 app.secret_key = 'substitua_por_uma_chave_segura'
 
-from flask import Flask
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "Olá, Vercel!"
-
 # Cria pastas se não existirem
 def ensure_folders():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -34,20 +27,26 @@ def allowed_file(filename):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    ensure_folders()  # Garante que as pastas existam antes de usar
+    
     if request.method == 'POST':
         if 'file' not in request.files:
             flash('Nenhum arquivo selecionado')
             return redirect(request.url)
 
-        file = request.files['file']
-        if file.filename == '':
+        files = request.files.getlist('file')
+        if not files or files[0].filename == '':
             flash('Nenhum arquivo selecionado')
             return redirect(request.url)
 
-        if not allowed_file(file.filename):
-            flash('Formato não suportado')
-            return redirect(request.url)
+        # Verificar se todos os arquivos têm formatos permitidos
+        for file in files:
+            if not allowed_file(file.filename):
+                flash(f'Formato não suportado: {file.filename}')
+                return redirect(request.url)
 
+        # Processamento para o primeiro arquivo (PDF -> Imagem)
+        file = files[0]
         filename = secure_filename(file.filename)
         in_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(in_path)
@@ -68,27 +67,23 @@ def index():
             out_pdf_name = f"{os.path.splitext(filename)[0]}.pdf"
             out_pdf_path = os.path.join(app.config['OUTPUT_FOLDER'], out_pdf_name)
 
-            # Converte todas as imagens selecionadas (aceita múltiplos uploads)
-            image_paths = request.files.getlist('file')
-            # Se vier apenas uma imagem
             try:
-                if len(image_paths) > 1:
-                    imgs = [Image.open(os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(f.filename))) for f in image_paths]
-                else:
-                    imgs = [Image.open(in_path)]
-            except Exception as e:
-                flash('Erro ao ler imagens: ' + str(e))
-                return redirect(request.url)
-
-            # Salva no PDF
-            try:
+                # Salvar todas as imagens enviadas
+                image_paths = []
+                for file in files:
+                    img_filename = secure_filename(file.filename)
+                    img_path = os.path.join(app.config['UPLOAD_FOLDER'], img_filename)
+                    file.save(img_path)
+                    image_paths.append(img_path)
+                
+                # Converter as imagens para PDF
                 with open(out_pdf_path, "wb") as f:
-                    f.write(img2pdf.convert([img.filename for img in imgs]))
+                    f.write(img2pdf.convert(image_paths))
+                
+                return send_file(out_pdf_path, as_attachment=True)
             except Exception as e:
                 flash('Erro na conversão para PDF: ' + str(e))
                 return redirect(request.url)
-
-            return send_file(out_pdf_path, as_attachment=True)
 
     return render_template('index.html')
 
