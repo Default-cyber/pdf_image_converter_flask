@@ -1,5 +1,4 @@
 {
-  "version": 2,
   "builds": [
     {
       "src": "app.py",
@@ -8,20 +7,13 @@
   ],
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "/static/$1"
-    },
-    {
-      "src": "/outputs/(.*)",
-      "dest": "/app.py/outputs/$1"
-    },
-    {
       "src": "/(.*)",
       "dest": "/app.py"
     }
   ],
-  "env": {
-    "FLASK_ENV": "production",
-    "FLASK_APP": "app.py"
+  "build": {
+    "env": {
+      "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/bin"
+    }
   }
 }
