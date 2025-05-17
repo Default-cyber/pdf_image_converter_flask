@@ -83,43 +83,50 @@ def index():
                     flash(f"Erro na conversão de PDF para imagem: {str(e)}")
                     return redirect(request.url)
 
-            # Imagem -> PDF
+            # Imagem -> PDF (processamento em memória)
             else:
                 try:
                     # Importar aqui para não afetar o carregamento inicial se houver problemas
                     import img2pdf
                     from PIL import Image
+                    import io
                     
+                    # Preparar buffer para o PDF em memória
                     out_pdf_name = f"{os.path.splitext(filename)[0]}.pdf"
-                    out_pdf_path = os.path.join(app.config['OUTPUT_FOLDER'], out_pdf_name)
-
-                    # Salvar todas as imagens enviadas
-                    image_paths = []
+                    
+                    # Processar todas as imagens em memória
+                    image_buffers = []
                     for file in files:
-                        img_filename = secure_filename(file.filename)
-                        img_path = os.path.join(app.config['UPLOAD_FOLDER'], img_filename)
-                        file.save(img_path)
+                        # Ler arquivo diretamente do objeto file sem salvar
+                        img_data = file.read()
+                        img_buffer = io.BytesIO(img_data)
                         
                         # Verificar e converter a imagem para garantir compatibilidade
                         try:
-                            with Image.open(img_path) as img:
+                            with Image.open(img_buffer) as img:
                                 # Converter para formato compatível se necessário
+                                out_buffer = io.BytesIO()
                                 if img.format not in ['JPEG', 'PNG']:
-                                    convert_path = os.path.splitext(img_path)[0] + '.png'
-                                    img.convert('RGB').save(convert_path, 'PNG')
-                                    image_paths.append(convert_path)
+                                    img.convert('RGB').save(out_buffer, 'PNG')
                                 else:
-                                    image_paths.append(img_path)
+                                    img.save(out_buffer, img.format)
+                                out_buffer.seek(0)
+                                image_buffers.append(out_buffer)
                         except Exception as img_error:
-                            app.logger.error(f"Erro ao processar imagem {img_filename}: {str(img_error)}")
-                            flash(f"Erro ao processar imagem {img_filename}: formato não suportado ou arquivo corrompido")
+                            app.logger.error(f"Erro ao processar imagem: {str(img_error)}")
+                            flash(f"Erro ao processar imagem: formato não suportado ou arquivo corrompido")
                             return redirect(request.url)
                     
-                    # Converter as imagens para PDF
-                    with open(out_pdf_path, "wb") as f:
-                        f.write(img2pdf.convert(image_paths))
+                    # Converter as imagens para PDF em memória
+                    pdf_bytes = img2pdf.convert([buffer.read() for buffer in image_buffers])
                     
-                    return send_file(out_pdf_path, as_attachment=True)
+                    # Retornar o PDF como resposta sem salvar no disco
+                    return send_file(
+                        io.BytesIO(pdf_bytes),
+                        mimetype='application/pdf',
+                        as_attachment=True,
+                        download_name=out_pdf_name
+                    )
                 except Exception as e:
                     app.logger.error(f"Erro na conversão para PDF: {str(e)}\n{traceback.format_exc()}")
                     flash(f"Erro na conversão para PDF: {str(e)}. Certifique-se de usar apenas imagens nos formatos PNG e JPEG.")
