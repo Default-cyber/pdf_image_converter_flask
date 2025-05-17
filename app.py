@@ -99,7 +99,21 @@ def index():
                         img_filename = secure_filename(file.filename)
                         img_path = os.path.join(app.config['UPLOAD_FOLDER'], img_filename)
                         file.save(img_path)
-                        image_paths.append(img_path)
+                        
+                        # Verificar e converter a imagem para garantir compatibilidade
+                        try:
+                            with Image.open(img_path) as img:
+                                # Converter para formato compatível se necessário
+                                if img.format not in ['JPEG', 'PNG']:
+                                    convert_path = os.path.splitext(img_path)[0] + '.png'
+                                    img.convert('RGB').save(convert_path, 'PNG')
+                                    image_paths.append(convert_path)
+                                else:
+                                    image_paths.append(img_path)
+                        except Exception as img_error:
+                            app.logger.error(f"Erro ao processar imagem {img_filename}: {str(img_error)}")
+                            flash(f"Erro ao processar imagem {img_filename}: formato não suportado ou arquivo corrompido")
+                            return redirect(request.url)
                     
                     # Converter as imagens para PDF
                     with open(out_pdf_path, "wb") as f:
@@ -108,7 +122,7 @@ def index():
                     return send_file(out_pdf_path, as_attachment=True)
                 except Exception as e:
                     app.logger.error(f"Erro na conversão para PDF: {str(e)}\n{traceback.format_exc()}")
-                    flash(f"Erro na conversão para PDF: {str(e)}")
+                    flash(f"Erro na conversão para PDF: {str(e)}. Certifique-se de usar apenas imagens nos formatos PNG e JPEG.")
                     return redirect(request.url)
 
         return render_template('index.html')
